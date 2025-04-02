@@ -1,0 +1,138 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <sstream>
+#include <ctime> 
+
+using namespace std;
+
+// Structure to store device information
+struct Device {
+    string name;
+    string type;
+    string lastMaintenanceDate;
+    int maintenanceInterval; // in days
+
+    // Function to calculate next maintenance date
+    string getNextMaintenanceDate() {
+        int year, month, day;
+        sscanf(lastMaintenanceDate.c_str(), "%d-%d-%d", &year, &month, &day);
+        
+        struct tm tm = {};
+        tm.tm_year = year - 1900;
+        tm.tm_mon = month - 1;
+        tm.tm_mday = day + maintenanceInterval;
+        mktime(&tm); // Normalize date
+
+        char buffer[11];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d", &tm);
+        return string(buffer);
+    }
+};
+
+// Function to get current date in YYYY-MM-DD format
+string getCurrentDate() {
+    time_t t = time(0);
+    struct tm *now = localtime(&t);
+    char buffer[11];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d", now);
+    return string(buffer);
+}
+
+// Save device data to file
+void saveDevicesToFile(const vector<Device>& devices) {
+    ofstream file("devices.txt");
+    if (!file) {
+        cout << "Error: Unable to save devices!\n";
+        return;
+    }
+
+    for (const auto& d : devices) {
+        file << d.name << "," << d.type << "," 
+             << d.lastMaintenanceDate << "," 
+             << d.maintenanceInterval << "\n";
+    }
+    file.close();
+}
+
+// Load device data from file
+vector<Device> loadDevicesFromFile() {
+    vector<Device> devices;
+    ifstream file("devices.txt");
+    if (!file) return devices; // Return empty if file doesn't exist
+
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        Device d;
+        string interval;
+        
+        getline(ss, d.name, ',');
+        getline(ss, d.type, ',');
+        getline(ss, d.lastMaintenanceDate, ',');
+        getline(ss, interval, ',');
+        
+        d.maintenanceInterval = stoi(interval);
+        devices.push_back(d);
+    }
+    file.close();
+    return devices;
+}
+
+// Function to add a new IT device
+void addDevice(vector<Device>& devices) {
+    Device d;
+    cout << "Enter device name: ";
+    cin >> d.name;
+    cout << "Enter device type (PC, Server, Router, etc.): ";
+    cin >> d.type;
+    cout << "Enter last maintenance date (YYYY-MM-DD): ";
+    cin >> d.lastMaintenanceDate;
+    cout << "Enter maintenance interval (days): ";
+    cin >> d.maintenanceInterval;
+
+    devices.push_back(d);
+    saveDevicesToFile(devices);
+    cout << "✅ Device added successfully!\n";
+}
+
+// Function to display maintenance schedule
+void showMaintenanceSchedule(const vector<Device>& devices) {
+    cout << "\n--- 🛠️ IT Maintenance Schedule ---\n";
+    string today = getCurrentDate();
+
+    for (const auto& d : devices) {
+        string nextMaintenance = d.getNextMaintenanceDate();
+        cout << "📌 Device: " << d.name << " (" << d.type << ")\n";
+        cout << "   Last Maintenance: " << d.lastMaintenanceDate << "\n";
+        cout << "   Next Maintenance: " << nextMaintenance << "\n";
+
+        if (nextMaintenance <= today) {
+            cout << "   ⚠️  Maintenance OVERDUE!\n";
+        }
+        cout << "----------------------\n";
+    }
+}
+
+int main() {
+    vector<Device> devices = loadDevicesFromFile();
+    int choice;
+
+    do {
+        cout << "\n--- IT Preventive Maintenance ---\n";
+        cout << "1️⃣  Add IT Device\n";
+        cout << "2️⃣  Show Maintenance Schedule\n";
+        cout << "3️⃣  Exit\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1: addDevice(devices); break;
+            case 2: showMaintenanceSchedule(devices); break;
+            case 3: cout << "Exiting... ✅\n"; break;
+            default: cout << "❌ Invalid choice. Try again.\n";
+        }
+    } while (choice != 3);
+
+    return 0;
+}
